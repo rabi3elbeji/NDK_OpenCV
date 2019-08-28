@@ -34,7 +34,6 @@ public class MainActivity extends AppCompatActivity
 
 
     static {
-       // System.loadLibrary("opencv_java4");
         System.loadLibrary("native-lib");
     }
 
