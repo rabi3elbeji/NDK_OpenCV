@@ -6,7 +6,7 @@
 cmake_minimum_required(VERSION 3.4.1)
 
 set(pathPROJECT /home/rabii/AndroidStudioProjects/NDK_OpenCV)
-set(pathOPENCV ${pathPROJECT}/opencv)
+set(pathOPENCV ${pathPROJECT}/opencv_sdk)
 set(pathLIBOPENCV_JAVA ${pathOPENCV}/native/libs/${ANDROID_ABI}/libopencv_java4.so)
 include_directories(${pathOPENCV}/native/jni/include)
 
