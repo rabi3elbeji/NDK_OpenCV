@@ -1,4 +1,4 @@
-# NDK with OpenCV
+# OpenCV with NDK 
 
 This application is a sample Android Studio project with native OpenCV.
 
