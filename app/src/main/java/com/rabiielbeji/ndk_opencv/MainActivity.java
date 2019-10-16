@@ -1,42 +1,51 @@
 package com.rabiielbeji.ndk_opencv;
 
-import android.os.Bundle;
-import android.view.WindowManager;
-
-import android.annotation.TargetApi;
-import android.content.DialogInterface;
-import android.content.pm.PackageManager;
-import android.os.Build;
-import android.util.Log;
-import android.view.SurfaceView;
-
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.content.ContextCompat;
 
 import org.opencv.android.BaseLoaderCallback;
-import org.opencv.android.CameraBridgeViewBase;
+import org.opencv.android.CameraActivity;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
+import org.opencv.core.Core;
+import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.android.CameraBridgeViewBase;
+import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2;
+import org.opencv.imgproc.Imgproc;
 
+import android.graphics.Camera;
+import android.os.Bundle;
+import android.util.Log;
+import android.view.MenuItem;
+import android.view.Surface;
+import android.view.SurfaceView;
+import android.view.WindowManager;
 
-public class MainActivity extends AppCompatActivity
-        implements CameraBridgeViewBase.CvCameraViewListener2 {
+import java.lang.reflect.Method;
+import java.util.Collections;
+import java.util.List;
 
-    private static final String TAG = "opencv";
+public class MainActivity extends CameraActivity implements CvCameraViewListener2 {
+    private static final String TAG = "NDK OpenCV";
+
     private CameraBridgeViewBase mOpenCvCameraView;
+    private boolean              mIsJavaCamera = true;
+    private MenuItem             mItemSwitchCamera = null;
     private Mat matInput;
-    private Mat matResult;
 
-    public native void ConvertRGBtoGray(long matAddrInput, long matAddrResult);
-
+    // These variables are used (at the moment) to fix camera orientation from 270degree to 0degree
+    Mat mRgba;
+    Mat mRgbaF;
+    Mat mRgbaT;
 
     static {
         System.loadLibrary("native-lib");
     }
 
+
+    public native void rotateImage(long matAddrInput, long matAddrResult);
+    public native void ConvertRGBtoGray(long matAddrInput, long matAddrResult);
+    public native void ConvertEdgeExtraction(long matAddrInput, long matAddrResult);
+    public native void EdgeDetection(long matAddrInput, long matAddrResult);
 
 
     private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
@@ -45,6 +54,7 @@ public class MainActivity extends AppCompatActivity
             switch (status) {
                 case LoaderCallbackInterface.SUCCESS:
                 {
+                    Log.i(TAG, "OpenCV loaded successfully");
                     mOpenCvCameraView.enableView();
                 } break;
                 default:
@@ -55,34 +65,29 @@ public class MainActivity extends AppCompatActivity
         }
     };
 
+    public MainActivity() {
+        Log.i(TAG, "Instantiated new " + this.getClass());
+    }
 
+    /** Called when the activity is first created. */
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    public void onCreate(Bundle savedInstanceState) {
+        Log.i(TAG, "called onCreate");
         super.onCreate(savedInstanceState);
-
-        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
-                WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        getWindow().setFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
-                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         setContentView(R.layout.activity_main);
 
+        mOpenCvCameraView = findViewById(R.id.camera_view);
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            //Check for permessions
-            if (!hasPermissions(PERMISSIONS)) {
-
-                //request for permissions if not allowed
-                requestPermissions(PERMISSIONS, PERMISSIONS_REQUEST_CODE);
-            }
-        }
-
-        mOpenCvCameraView = (CameraBridgeViewBase)findViewById(R.id.activity_surface_view);
         mOpenCvCameraView.setVisibility(SurfaceView.VISIBLE);
+
         mOpenCvCameraView.setCvCameraViewListener(this);
-        mOpenCvCameraView.setCameraIndex(0); // front-camera(1),  back-camera(0)
-        mLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
+
+
     }
+
+
 
     @Override
     public void onPause()
@@ -96,25 +101,33 @@ public class MainActivity extends AppCompatActivity
     public void onResume()
     {
         super.onResume();
-
         if (!OpenCVLoader.initDebug()) {
-            Log.d(TAG, "onResume :: Internal OpenCV library not found.");
-            OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_2_0, this, mLoaderCallback);
+            Log.d(TAG, "Internal OpenCV library not found. Using OpenCV Manager for initialization");
+            OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION, this, mLoaderCallback);
         } else {
-            Log.d(TAG, "onResum :: OpenCV library found inside package. Using it!");
+            Log.d(TAG, "OpenCV library found inside package. Using it!");
             mLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
         }
     }
 
+    @Override
+    protected List<? extends CameraBridgeViewBase> getCameraViewList() {
+        return Collections.singletonList(mOpenCvCameraView);
+    }
+
+    @Override
     public void onDestroy() {
         super.onDestroy();
-
         if (mOpenCvCameraView != null)
             mOpenCvCameraView.disableView();
     }
 
+
     @Override
     public void onCameraViewStarted(int width, int height) {
+        mRgba = new Mat(height, width, CvType.CV_8UC4);
+        mRgbaF = new Mat(height, width, CvType.CV_8UC4);
+        mRgbaT = new Mat(width, width, CvType.CV_8UC4);
 
     }
 
@@ -123,84 +136,39 @@ public class MainActivity extends AppCompatActivity
 
     }
 
+
+
     @Override
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
 
-        matInput = inputFrame.rgba();
-
-        //if ( matResult != null ) matResult.release(); fix 2018. 8. 18
-
-        if ( matResult == null )
-
-            matResult = new Mat(matInput.rows(), matInput.cols(), matInput.type());
-
-        //ConvertRGBtoGray(matInput.getNativeObjAddr(), matResult.getNativeObjAddr());
-
-        return matResult;
-    }
+        mRgba = inputFrame.rgba();
 
 
-
-    static final int PERMISSIONS_REQUEST_CODE = 1000;
-    String[] PERMISSIONS  = {"android.permission.CAMERA"};
-
-
-    private boolean hasPermissions(String[] permissions) {
-        int result;
-
-        for (String perms : permissions){
-
-            result = ContextCompat.checkSelfPermission(this, perms);
-
-            if (result == PackageManager.PERMISSION_DENIED){
-
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-
-        switch(requestCode){
-
-            case PERMISSIONS_REQUEST_CODE:
-                if (grantResults.length > 0) {
-                    boolean cameraPermissionAccepted = grantResults[0]
-                            == PackageManager.PERMISSION_GRANTED;
-
-                    if (!cameraPermissionAccepted)
-                        showDialogForPermission("You need to grant permission to run the app.");
-                }
+        switch (mOpenCvCameraView.getDisplay().getRotation()) {
+            case Surface.ROTATION_0: // Vertical portrait
+                Core.transpose(mRgba, mRgbaT);
+                Imgproc.resize(mRgbaT, mRgbaF, mRgbaF.size(), 0,0, 0);
+                Core.flip(mRgbaF, mRgba, 1);
                 break;
+            case Surface.ROTATION_90: // 90° anti-clockwise
+                break;
+            case Surface.ROTATION_180: // Vertical anti-portrait
+                Core.transpose(mRgba, mRgbaT);
+                Imgproc.resize(mRgbaT, mRgbaF, mRgbaF.size(), 0,0, 0);
+                Core.flip(mRgbaF, mRgba, 0);
+                break;
+            case Surface.ROTATION_270: // 90° clockwise
+                Imgproc.resize(mRgba, mRgbaF, mRgbaF.size(), 0,0, 0);
+                Core.flip(mRgbaF, mRgba, -1);
+                break;
+            default:
         }
-    }
 
+        EdgeDetection(mRgba.nativeObj, mRgba.nativeObj);
 
-    @TargetApi(Build.VERSION_CODES.M)
-    private void showDialogForPermission(String msg) {
+        //ConvertRGBtoGray(mRgba.nativeObj, mRgba.nativeObj);
 
-        AlertDialog.Builder builder = new AlertDialog.Builder( MainActivity.this);
-        builder.setTitle("Notification");
-        builder.setMessage(msg);
-        builder.setCancelable(false);
-        builder.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int id){
-                requestPermissions(PERMISSIONS, PERMISSIONS_REQUEST_CODE);
-            }
-        });
-        builder.setNegativeButton("No", new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface arg0, int arg1) {
-                finish();
-            }
-        });
-        builder.create().show();
+        return mRgba;
     }
 
 

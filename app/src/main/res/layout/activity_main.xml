@@ -1,17 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    xmlns:opencv="http://schemas.android.com/apk/res-auto"
     tools:context=".MainActivity">
 
-
-    <org.opencv.android.JavaCameraView
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:id="@+id/activity_surface_view" />
-
+        <org.opencv.android.JavaCameraView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone"
+            android:id="@+id/camera_view"
+            opencv:show_fps="false"
+            opencv:camera_id="any" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>

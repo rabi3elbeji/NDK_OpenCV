@@ -5,7 +5,7 @@ android {
     buildToolsVersion "29.0.2"
     defaultConfig {
         applicationId "com.rabiielbeji.ndk_opencv"
-        minSdkVersion 22
+        minSdkVersion 20
         targetSdkVersion 29
         versionCode 1
         versionName "1.0"
@@ -14,7 +14,7 @@ android {
 
         externalNativeBuild {
             cmake {
-                cppFlags "-std=c++11 -frtti -fexceptions"
+                cppFlags "-std=c++11"
                 abiFilters 'x86', 'x86_64', 'armeabi-v7a', 'arm64-v8a'
 
             }
@@ -24,6 +24,7 @@ android {
     sourceSets {
         main {
             jniLibs.srcDirs = ['src/main/jniLibs']
+            jni.srcDirs = ['src/main/jni', 'src/main/jniLibs']
         }
     }
 
