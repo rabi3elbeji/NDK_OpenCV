@@ -46,6 +46,7 @@ public class MainActivity extends CameraActivity implements CvCameraViewListener
     public native void ConvertRGBtoGray(long matAddrInput, long matAddrResult);
     public native void ConvertEdgeExtraction(long matAddrInput, long matAddrResult);
     public native void EdgeDetection(long matAddrInput, long matAddrResult);
+    public native void FindDocument(long matAddrInput, long matAddrResult);
 
 
     private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
@@ -164,7 +165,9 @@ public class MainActivity extends CameraActivity implements CvCameraViewListener
             default:
         }
 
-        EdgeDetection(mRgba.nativeObj, mRgba.nativeObj);
+        //EdgeDetection(mRgba.nativeObj, mRgba.nativeObj);
+
+        FindDocument(mRgba.nativeObj, mRgba.nativeObj);
 
         //ConvertRGBtoGray(mRgba.nativeObj, mRgba.nativeObj);
 
